@@ -1,16 +1,19 @@
+from backlash.utils.wsgi import get_current_url, get_headers, get_environ
+
+has_sdk = True 
 try:
-    from raven.base import Client
-    from raven.utils.wsgi import get_current_url, get_headers, get_environ
+    import sentry_sdk
 except ImportError:
-    Client = None
+    has_sdk = False 
 
 
 class SentryReporter(object):
-    def __init__(self, sentry_dsn, **unused):
-        if Client is None:
-            raise RavenNotAvailable('Raven is not installed, maybe run "pip install raven"')
+    def __init__(self, sentry_dsn, **kwargs):
+        if not has_sdk:
+            raise SentryNotAvailable('Sentry SDK is not installed, maybe run "pip install sentry_sdk"')
 
-        self.client = Client(sentry_dsn)
+        sentry_options = kwargs.get("sentry_options", {})
+        sentry_sdk.init(sentry_dsn, **sentry_options)
 
     def report(self, traceback):
         environ = traceback.context.get('environ', {})
@@ -26,15 +29,16 @@ class SentryReporter(object):
             }
         }
 
-        is_backlash_event = getattr(traceback.exc_value, 'backlash_event', False)
-        if is_backlash_event:
-            # Just a Stack Dump request from backlash
-            self.client.captureMessage(traceback.exception, data=data,
-                                       stack=traceback.frames)
-        else:
-            # This is a real crash
-            self.client.captureException(exc_info=traceback.exc_info, data=data)
+        with sentry_sdk.push_scope() as scope:
+            is_backlash_event = getattr(traceback.exc_value, 'backlash_event', False)
+            if is_backlash_event:
+                # Just a Stack Dump request from backlash
+                sentry_sdk.capture_message(traceback.exception, data=data,
+                                           stack=traceback.frames)
+            else:
+                # This is a real crash
+                sentry_sdk.capture_exception(traceback.exc_info, data)
 
 
-class RavenNotAvailable(Exception):
+class SentryNotAvailable(Exception):
     pass
