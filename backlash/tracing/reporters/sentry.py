@@ -1,3 +1,4 @@
+import os
 from backlash.utils.wsgi import get_current_url, get_headers, get_environ
 
 has_sdk = True 
@@ -8,12 +9,15 @@ except ImportError:
 
 
 class SentryReporter(object):
-    def __init__(self, sentry_dsn, **kwargs):
+    def __init__(self, sentry_dsn, **unused):
         if not has_sdk:
             raise SentryNotAvailable('Sentry SDK is not installed, maybe run "pip install sentry_sdk"')
 
-        sentry_options = kwargs.get("sentry_options", {})
-        sentry_sdk.init(sentry_dsn, **sentry_options)
+        sentry_traces_sample_rate = os.environ.get('SENTRY_TRACES_SAMPLE_RATE')
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            traces_sample_rate=sentry_traces_sample_rate
+        )
 
     def report(self, traceback):
         environ = traceback.context.get('environ', {})
