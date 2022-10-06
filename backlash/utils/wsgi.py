@@ -6,7 +6,7 @@ This module implements WSGI related helpers adapted from ``werkzeug.wsgi``
 """
 from __future__ import absolute_import
 
-from utils.compat import iteritems, urllib_quote
+from backlash.utils.compat import iteritems, urllib_quote
 
 
 # `get_headers` comes from `werkzeug.datastructures.EnvironHeaders`
